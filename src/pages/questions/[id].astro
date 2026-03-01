@@ -1,0 +1,220 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { db } from '../../lib/db';
+import { questions, answers } from '../../lib/db/schema';
+import { eq, and } from 'drizzle-orm';
+
+const user = Astro.locals.user;
+
+if (!user) {
+  return Astro.redirect('/');
+}
+
+const questionId = Astro.params.id;
+
+if (!questionId) {
+  return Astro.redirect('/questions');
+}
+
+const result = await db
+  .select({
+    question: questions,
+    answer: answers
+  })
+  .from(questions)
+  .leftJoin(answers, eq(questions.id, answers.questionId))
+  .where(and(
+    eq(questions.id, questionId),
+    eq(questions.userId, user.id)
+  ))
+  .limit(1);
+
+if (result.length === 0) {
+  return Astro.redirect('/questions');
+}
+
+const { question, answer } = result[0];
+
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(date);
+}
+---
+
+<AppLayout title="Question">
+  <div class="question-container">
+    <a href="/questions" class="back-link">← Back to questions</a>
+
+    <div class="question-card">
+      <div class="meta">
+        <span class={`status status-${question.status}`}>
+          {question.status === 'complete' ? '✓ Answered' :
+           question.status === 'processing' ? '⏳ Processing' :
+           question.status === 'failed' ? '✗ Failed' : '○ Pending'}
+        </span>
+        <span class="depth">{question.depth === 'deep' ? '🔍 Deep Research' : 'Quick Answer'}</span>
+      </div>
+
+      <h1 class="question-text">{question.content}</h1>
+
+      <p class="timestamp">Asked on {formatDate(question.createdAt)}</p>
+    </div>
+
+    {question.status === 'complete' && answer ? (
+      <div class="answer-card">
+        <h2>Answer</h2>
+        <div class="answer-content">
+          {answer.content.split('\n').map((paragraph) => (
+            paragraph.trim() && <p>{paragraph}</p>
+          ))}
+        </div>
+        <p class="answer-meta">
+          Answered using {answer.modelUsed} on {formatDate(answer.createdAt)}
+        </p>
+      </div>
+    ) : question.status === 'processing' ? (
+      <div class="status-card processing">
+        <div class="spinner"></div>
+        <p>We're researching your question. Check back soon!</p>
+      </div>
+    ) : question.status === 'failed' ? (
+      <div class="status-card failed">
+        <p>Sorry, we couldn't answer this question. Please try asking again.</p>
+      </div>
+    ) : (
+      <div class="status-card pending">
+        <p>Your question is in the queue. We'll start working on it shortly.</p>
+      </div>
+    )}
+  </div>
+
+  <style>
+    .question-container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .back-link {
+      display: inline-block;
+      color: #888;
+      text-decoration: none;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+    .back-link:hover {
+      color: #fff;
+    }
+    .question-card {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .meta {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+    }
+    .status {
+      font-weight: 500;
+    }
+    .status-complete { color: #22c55e; }
+    .status-processing { color: #f59e0b; }
+    .status-failed { color: #ef4444; }
+    .status-pending { color: #6b7280; }
+    .depth { color: #888; }
+    .question-text {
+      font-size: 1.25rem;
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }
+    .timestamp {
+      color: #666;
+      font-size: 0.875rem;
+    }
+    .answer-card {
+      background: #0c1f0c;
+      border: 1px solid #1a3a1a;
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+    .answer-card h2 {
+      font-size: 1rem;
+      color: #86efac;
+      margin-bottom: 1rem;
+    }
+    .answer-content {
+      line-height: 1.7;
+    }
+    .answer-content p {
+      margin-bottom: 1rem;
+    }
+    .answer-content p:last-child {
+      margin-bottom: 0;
+    }
+    .answer-meta {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #1a3a1a;
+      color: #4ade80;
+      font-size: 0.8rem;
+    }
+    .status-card {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      color: #888;
+    }
+    .status-card.processing {
+      border-color: #422006;
+      background: #1c1006;
+    }
+    .status-card.failed {
+      border-color: #450a0a;
+      background: #1c0606;
+      color: #fca5a5;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #333;
+      border-top-color: #f59e0b;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+  {(question.status === 'pending' || question.status === 'processing') && (
+    <script is:inline define:vars={{ questionId: question.id }}>
+      // Auto-refresh every 10 seconds while waiting for answer
+      async function checkStatus() {
+        try {
+          const response = await fetch(`/api/questions/${questionId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.status === 'complete' || data.status === 'failed') {
+              window.location.reload();
+            }
+          }
+        } catch (e) {
+          // Silently ignore errors
+        }
+      }
+
+      setInterval(checkStatus, 10000);
+    </script>
+  )}
+</AppLayout>

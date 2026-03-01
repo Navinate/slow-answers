@@ -1,0 +1,486 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+
+const user = Astro.locals.user;
+
+if (!user) {
+  return Astro.redirect('/');
+}
+---
+
+<AppLayout title="Ask a Question">
+  <div class="ask-container">
+    <h1>What's your question?</h1>
+
+    <form id="question-form" class="question-form">
+      <!-- Mobile: Large voice button first -->
+      <button type="button" id="voice-btn-mobile" class="voice-btn-mobile" title="Tap to speak">
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+        <span class="voice-label">Tap to speak</span>
+      </button>
+
+      <div class="or-divider"><span>or type below</span></div>
+
+      <div class="input-area">
+        <textarea
+          id="question-input"
+          name="content"
+          placeholder="Type your question..."
+          rows="4"
+        ></textarea>
+
+        <!-- Desktop: Small voice button in corner -->
+        <button type="button" id="voice-btn" class="voice-btn" title="Click to speak">
+          <svg class="mic-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </button>
+      </div>
+
+      <div id="voice-status" class="voice-status"></div>
+
+      <div class="options">
+        <label class="depth-option">
+          <input type="checkbox" name="deep" id="deep-checkbox" />
+          <span class="checkmark"></span>
+          <span class="label-text">
+            Deep research
+            <span class="hint">(slower, more thorough)</span>
+          </span>
+        </label>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submit-btn">
+        Submit Question
+      </button>
+    </form>
+
+    <div id="success-message" class="success-message" hidden>
+      <p>Question submitted!</p>
+      <p class="success-sub">We'll research it and have an answer ready soon.</p>
+      <a href="/questions" class="view-link">View your questions →</a>
+    </div>
+  </div>
+
+  <style>
+    .ask-container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.75rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    .question-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Mobile-first large voice button */
+    .voice-btn-mobile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      width: 100%;
+      padding: 2rem;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 2px solid #333;
+      border-radius: 16px;
+      color: #888;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .voice-btn-mobile:hover {
+      border-color: #555;
+      color: #fff;
+    }
+    .voice-btn-mobile.recording {
+      background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+      border-color: #dc2626;
+      color: #fff;
+      animation: pulse 1.5s infinite;
+    }
+    .voice-btn-mobile.unsupported {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .voice-btn-mobile .mic-icon {
+      width: 48px;
+      height: 48px;
+    }
+    .voice-label {
+      font-size: 1rem;
+      font-weight: 500;
+    }
+    .voice-btn-mobile.recording .voice-label {
+      display: none;
+    }
+    .voice-btn-mobile.recording::after {
+      content: 'Listening... tap to stop';
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .or-divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      color: #555;
+      font-size: 0.875rem;
+    }
+    .or-divider::before,
+    .or-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #333;
+    }
+
+    .input-area {
+      position: relative;
+    }
+    textarea {
+      width: 100%;
+      padding: 1rem;
+      padding-right: 3.5rem;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 1rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 120px;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #555;
+    }
+    textarea::placeholder {
+      color: #666;
+    }
+
+    /* Desktop small voice button (hidden on mobile) */
+    .voice-btn {
+      display: none;
+      position: absolute;
+      right: 0.75rem;
+      top: 0.75rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: #222;
+      color: #888;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .voice-btn:hover {
+      background: #333;
+      color: #fff;
+    }
+    .voice-btn.recording {
+      background: #dc2626;
+      color: #fff;
+      animation: pulse 1.5s infinite;
+    }
+    .voice-btn.unsupported {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    .mic-icon-small {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Desktop: hide mobile button, show small button */
+    @media (min-width: 640px) {
+      .voice-btn-mobile {
+        display: none;
+      }
+      .or-divider {
+        display: none;
+      }
+      .voice-btn {
+        display: flex;
+      }
+      h1 {
+        text-align: left;
+      }
+      textarea {
+        padding-right: 3.5rem;
+      }
+    }
+    .voice-status {
+      font-size: 0.875rem;
+      color: #888;
+      min-height: 1.25rem;
+    }
+    .voice-status.error {
+      color: #ef4444;
+    }
+    .options {
+      padding: 0.5rem 0;
+    }
+    .depth-option {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .depth-option input {
+      display: none;
+    }
+    .checkmark {
+      width: 18px;
+      height: 18px;
+      border: 1px solid #444;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .depth-option input:checked + .checkmark {
+      background: #3b82f6;
+      border-color: #3b82f6;
+    }
+    .depth-option input:checked + .checkmark::after {
+      content: '✓';
+      color: #fff;
+      font-size: 12px;
+    }
+    .label-text {
+      color: #ccc;
+    }
+    .hint {
+      color: #666;
+      font-size: 0.875rem;
+    }
+    .submit-btn {
+      padding: 0.875rem 1.5rem;
+      background: #fff;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .submit-btn:hover {
+      opacity: 0.9;
+    }
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .success-message {
+      background: #052e16;
+      border: 1px solid #166534;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .success-message p {
+      margin-bottom: 0.5rem;
+      color: #86efac;
+      font-size: 1.125rem;
+      font-weight: 500;
+    }
+    .success-message .success-sub {
+      font-size: 0.9rem;
+      font-weight: 400;
+      color: #6ee7a0;
+      margin-bottom: 1.5rem;
+    }
+    .view-link {
+      display: inline-block;
+      background: #166534;
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .view-link:hover {
+      background: #15803d;
+    }
+  </style>
+
+  <script>
+    interface SpeechRecognitionEvent extends Event {
+      resultIndex: number;
+      results: SpeechRecognitionResultList;
+    }
+
+    interface SpeechRecognitionErrorEvent extends Event {
+      error: string;
+    }
+
+    interface SpeechRecognitionInstance extends EventTarget {
+      continuous: boolean;
+      interimResults: boolean;
+      lang: string;
+      start(): void;
+      stop(): void;
+      onstart: ((this: SpeechRecognitionInstance, ev: Event) => void) | null;
+      onresult: ((this: SpeechRecognitionInstance, ev: SpeechRecognitionEvent) => void) | null;
+      onend: ((this: SpeechRecognitionInstance, ev: Event) => void) | null;
+      onerror: ((this: SpeechRecognitionInstance, ev: SpeechRecognitionErrorEvent) => void) | null;
+    }
+
+    declare global {
+      interface Window {
+        SpeechRecognition?: new () => SpeechRecognitionInstance;
+        webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+      }
+    }
+
+    const form = document.getElementById('question-form') as HTMLFormElement;
+    const textarea = document.getElementById('question-input') as HTMLTextAreaElement;
+    const voiceBtn = document.getElementById('voice-btn') as HTMLButtonElement;
+    const voiceBtnMobile = document.getElementById('voice-btn-mobile') as HTMLButtonElement;
+    const voiceStatus = document.getElementById('voice-status') as HTMLDivElement;
+    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+    const successMessage = document.getElementById('success-message') as HTMLDivElement;
+    const deepCheckbox = document.getElementById('deep-checkbox') as HTMLInputElement;
+
+    // Web Speech API setup
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition: SpeechRecognitionInstance | null = null;
+    let isRecording = false;
+
+    function setRecordingState(recording: boolean) {
+      isRecording = recording;
+      if (recording) {
+        voiceBtn.classList.add('recording');
+        voiceBtnMobile.classList.add('recording');
+        voiceStatus.textContent = 'Listening...';
+        voiceStatus.classList.remove('error');
+      } else {
+        voiceBtn.classList.remove('recording');
+        voiceBtnMobile.classList.remove('recording');
+        voiceStatus.textContent = '';
+      }
+    }
+
+    function toggleRecording() {
+      if (isRecording) {
+        recognition?.stop();
+      } else {
+        recognition?.start();
+      }
+    }
+
+    if (SpeechRecognitionCtor) {
+      recognition = new SpeechRecognitionCtor();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setRecordingState(true);
+      };
+
+      recognition.onresult = (event) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          textarea.value += (textarea.value ? ' ' : '') + finalTranscript;
+        }
+
+        if (interimTranscript) {
+          voiceStatus.textContent = `"${interimTranscript}"`;
+        }
+      };
+
+      recognition.onend = () => {
+        setRecordingState(false);
+      };
+
+      recognition.onerror = (event) => {
+        setRecordingState(false);
+        voiceStatus.textContent = `Error: ${event.error}`;
+        voiceStatus.classList.add('error');
+      };
+
+      voiceBtn.addEventListener('click', toggleRecording);
+      voiceBtnMobile.addEventListener('click', toggleRecording);
+    } else {
+      voiceBtn.classList.add('unsupported');
+      voiceBtnMobile.classList.add('unsupported');
+      voiceBtn.title = 'Speech recognition not supported in this browser';
+      voiceBtnMobile.title = 'Speech recognition not supported in this browser';
+    }
+
+    export {};
+
+    // Form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const content = textarea.value.trim();
+      if (!content) {
+        voiceStatus.textContent = 'Please enter a question';
+        voiceStatus.classList.add('error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+
+      try {
+        const response = await fetch('/api/questions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content,
+            depth: deepCheckbox.checked ? 'deep' : 'quick'
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to submit question');
+        }
+
+        form.hidden = true;
+        successMessage.hidden = false;
+      } catch (error) {
+        voiceStatus.textContent = 'Failed to submit. Please try again.';
+        voiceStatus.classList.add('error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Question';
+      }
+    });
+  </script>
+</AppLayout>

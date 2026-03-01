@@ -1,0 +1,169 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { db } from '../../lib/db';
+import { questions, answers } from '../../lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
+
+const user = Astro.locals.user;
+
+if (!user) {
+  return Astro.redirect('/');
+}
+
+const userQuestions = await db
+  .select({
+    question: questions,
+    answer: answers
+  })
+  .from(questions)
+  .leftJoin(answers, eq(questions.id, answers.questionId))
+  .where(eq(questions.userId, user.id))
+  .orderBy(desc(questions.createdAt));
+
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(date);
+}
+
+function getStatusColor(status: string): string {
+  switch (status) {
+    case 'complete': return '#22c55e';
+    case 'processing': return '#f59e0b';
+    case 'failed': return '#ef4444';
+    default: return '#6b7280';
+  }
+}
+---
+
+<AppLayout title="Your Questions">
+  <div class="questions-container">
+    <div class="header">
+      <h1>Your Questions</h1>
+      <a href="/ask" class="new-btn">+ New Question</a>
+    </div>
+
+    {userQuestions.length === 0 ? (
+      <div class="empty-state">
+        <p>You haven't asked any questions yet.</p>
+        <a href="/ask" class="ask-link">Ask your first question →</a>
+      </div>
+    ) : (
+      <ul class="questions-list">
+        {userQuestions.map(({ question }) => (
+          <li class="question-item">
+            <a href={`/questions/${question.id}`} class="question-link">
+              <div class="question-content">
+                <p class="question-text">{question.content}</p>
+                <div class="question-meta">
+                  <span class="status" style={`color: ${getStatusColor(question.status)}`}>
+                    {question.status === 'complete' ? '✓ Answered' :
+                     question.status === 'processing' ? '⏳ Processing' :
+                     question.status === 'failed' ? '✗ Failed' : '○ Pending'}
+                  </span>
+                  <span class="depth">{question.depth === 'deep' ? '🔍 Deep' : 'Quick'}</span>
+                  <span class="date">{formatDate(question.createdAt)}</span>
+                </div>
+              </div>
+              <span class="arrow">→</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+
+  <style>
+    .questions-container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+    }
+    .new-btn {
+      background: #222;
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .new-btn:hover {
+      background: #333;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      background: #111;
+      border-radius: 8px;
+      color: #888;
+    }
+    .empty-state p {
+      margin-bottom: 1rem;
+    }
+    .ask-link {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+    .ask-link:hover {
+      text-decoration: underline;
+    }
+    .questions-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .question-item {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .question-item:hover {
+      border-color: #333;
+    }
+    .question-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      text-decoration: none;
+      color: inherit;
+    }
+    .question-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .question-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 0.5rem;
+    }
+    .question-meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: #666;
+    }
+    .status {
+      font-weight: 500;
+    }
+    .arrow {
+      color: #444;
+      font-size: 1.25rem;
+      margin-left: 1rem;
+    }
+  </style>
+</AppLayout>
