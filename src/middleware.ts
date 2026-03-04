@@ -7,7 +7,7 @@ let processorStarted = false;
 
 export const onRequest = defineMiddleware(async (context, next) => {
   // Start processor on first request (only in production-like environments)
-  if (!processorStarted && process.env.DATABASE_URL) {
+  if (!processorStarted && (import.meta.env.DATABASE_URL ?? process.env.DATABASE_URL)) {
     processorStarted = true;
     try {
       startProcessor(30000); // Check every 30 seconds

@@ -4,9 +4,9 @@ import { users, sessions, type User, type Session } from './db/schema';
 import { eq } from 'drizzle-orm';
 
 export const google = new Google(
-  process.env.GOOGLE_CLIENT_ID!,
-  process.env.GOOGLE_CLIENT_SECRET!,
-  process.env.GOOGLE_REDIRECT_URI!
+  import.meta.env.GOOGLE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID!,
+  import.meta.env.GOOGLE_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET!,
+  import.meta.env.GOOGLE_REDIRECT_URI ?? process.env.GOOGLE_REDIRECT_URI!
 );
 
 export function generateSessionId(): string {

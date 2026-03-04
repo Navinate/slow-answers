@@ -79,17 +79,19 @@ export class OpenAIProvider implements AIProvider {
 
 export function createProvider(): AIProvider {
   // Try Anthropic first (cheaper for Haiku), then OpenAI
-  if (process.env.ANTHROPIC_API_KEY) {
+  const anthropicKey = import.meta.env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey) {
     return new AnthropicProvider(
-      process.env.ANTHROPIC_API_KEY,
-      process.env.ANTHROPIC_MODEL || 'claude-3-haiku-20240307'
+      anthropicKey,
+      import.meta.env.ANTHROPIC_MODEL ?? process.env.ANTHROPIC_MODEL ?? 'claude-3-haiku-20240307'
     );
   }
 
-  if (process.env.OPENAI_API_KEY) {
+  const openaiKey = import.meta.env.OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (openaiKey) {
     return new OpenAIProvider(
-      process.env.OPENAI_API_KEY,
-      process.env.OPENAI_MODEL || 'gpt-4o-mini'
+      openaiKey,
+      import.meta.env.OPENAI_MODEL ?? process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
     );
   }
 
