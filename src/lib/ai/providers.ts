@@ -83,7 +83,7 @@ export function createProvider(): AIProvider {
   if (anthropicKey) {
     return new AnthropicProvider(
       anthropicKey,
-      import.meta.env.ANTHROPIC_MODEL ?? process.env.ANTHROPIC_MODEL ?? 'claude-3-haiku-20240307'
+      import.meta.env.ANTHROPIC_MODEL ?? process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001'
     );
   }
 
